@@ -95,6 +95,70 @@ function dst_folder(){
     done
 }
 
+function dst_ftp(){
+    while read a; do
+        Name=`echo $a | jq '.name' | sed 's/\"//g'`
+        Src=`echo $a | jq '.src' | sed 's/\"//g'`
+        Purge=`echo $a | jq '.purge' | sed 's/\"//g'`
+
+        Host=`echo $a | jq '.dst.host' | sed 's/\"//g'`
+        Port=21
+        User=`echo $a | jq '.dst.user' | sed 's/\"//g'`
+        Pass=`echo $a | jq '.dst.pass' | sed 's/\"//g'`
+        Folder=`echo $a | jq '.dst.folder' | sed 's/\"//g'`
+
+        echo -e $(ts)'\t'Create ftp script $Host | tee -a $FLOG
+        # --- begin
+        echo "ftp -i -n $Host $Port << EOF" > $TMP/ftp-put
+        echo "user $User $Pass" >> $TMP/ftp-put
+        echo "binary" >> $TMP/ftp-put
+        echo "mkdir $Folder/$TAG" >> $TMP/ftp-put
+        echo "mkdir $Folder/$TAG/$Name" >> $TMP/ftp-put
+        P=${Src/$TMP/''}
+        echo "put $Src $Folder/$TAG/$Name$P" >> $TMP/ftp-put
+
+        P=${Src/$TMP/''} # заменить $TMP на ''
+        P=${P:21} # отрезать ts
+        echo "nlist $Folder/$TAG/$Name/*_$P $TMP/ftp-list" >> $TMP/ftp-put
+
+        echo "quit" >> $TMP/ftp-put
+        echo "EOF" >> $TMP/ftp-put
+        # --- end
+        echo -e $(ts)'\t' Success | tee -a $FLOG
+
+        echo -e $(ts)'\t'Run ftp script | tee -a $FLOG
+        . $TMP/ftp-put >> $FLOG 2> /dev/null
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+        fi
+
+        echo -e $(ts)'\t'Purge archives | tee -a $FLOG
+        cat $TMP/ftp-list | sort -r | tail -n +$((Purge+1)) > $TMP/ftp-purge
+        if [ `cat $TMP/ftp-purge 2> /dev/null | wc -l` -gt 0 ]; then
+            echo "ftp -i -n $Host $Port << EOF" > $TMP/ftp-del
+            echo "user $User $Pass" >> $TMP/ftp-del
+            echo "binary" >> $TMP/ftp-del
+            cat $TMP/ftp-purge | while read b; do \
+                echo "mdelete $b" >> $TMP/ftp-del
+            done
+            echo "quit" >> $TMP/ftp-del
+            echo "EOF" >> $TMP/ftp-del
+
+            . $TMP/ftp-del
+            RET=$?
+            if [ "$RET" != "0" ]; then
+                echo -e $(ts)'\t' Fail | tee -a $FLOG
+            else
+                cat $TMP/ftp-purge | while read b; do echo -e $(ts)'\t' Remove $b | tee -a $FLOG; done
+            fi
+        fi
+
+    done
+}
+
 ## -----------------------------------------------------------------------------
 function dst_nfs(){
     while read a; do
