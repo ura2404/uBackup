@@ -1,0 +1,85 @@
+#!/bin/bash
+## -----------------------------------------------------------------------------
+ # backup
+ #
+ # @version 0.0.2 2019-12-24
+ # @version 0.0.1 2019-01-25
+ # @author ura@urx.su
+ #
+ # -----------------------------------------------------------------------------
+
+# Корень
+export ROOT=~/.uBackup
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# Дальше ничего менять не нужно
+
+# ------------------------------------------------------------------------------
+# Загрузка конфигурации и библиотеки, обязательно сначала lib
+#. $ROOT/backup.lib
+. $ROOT/backup.lib
+. $ROOT/backup.cfg
+
+mkdir -p $LOG
+touch $LOG/.backup.stop
+mkdir -p $TOUCH
+touch $TOUCH/.backup.stop
+mkdir -p $TMP
+touch $TMP/.backup.stop
+
+# Удалить tmp файлы старще 2-х часов
+find $TMP -type f -cmin +120 -path '*.bz2' -exec rm '{}' \; 2>/dev/null
+
+# ------------------------------------------------------------------------------
+# Начало
+export FLOG=$LOG/$(ts true).log
+
+# ------------------
+# 1. Шапка
+echo -e $(delimeter) | tee -a $FLOG
+echo -e $(ts) Start \"$TAG\" | tee -a $FLOG
+
+# ------------------
+# 2. проверка PID
+echo -e $(ts) Check pid | tee -a $FLOG
+
+#    если pid старше 30 минут, то удалить его
+find $PID -type f -cmin +30 -exec rm '{}' \; 2>/dev/null
+
+#    если есть pid, то выход, иначе создать pid и продолжить
+if [ -f $PID ]; then
+    echo -e $(ts)'  Pid is exists, process is stoped' | tee -a $FLOG
+    bzip2 -9 $FLOG
+    exit
+else
+    echo -e $(ts)'  Success' | tee -a $FLOG
+    touch $PID
+fi
+
+# ------------------
+# 3. Удалить логи старше 2-х дней
+find $LOG -type f -ctime +2 -path '*.log.bz2' -exec rm '{}' \; 2>/dev/null
+
+# ------------------
+# 4. перебор src
+echo -e $(ts) Select projects | tee -a $FLOG
+echo -e $(ts) . | tee -a $FLOG
+
+cat $ROOT/src.cfg.json | jq '.[] | tostring' | sed 's/^\"//;s/\"$//' | src
+
+
+# ------------------------------------------------------------------------------
+# 5. Конец
+echo -e $(ts) End \"$TAG\" | tee -a $FLOG
+
+# 5.1 сжатие log
+bzip2 -9 $FLOG
+
+# 5.2 отправка log
+
+# 5.3
+rm -f $PID
+rm -dr $TMP
+

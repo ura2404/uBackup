@@ -1,0 +1,424 @@
+#!/bin/bash
+# Проверить окружение
+# jq
+P=`/usr/bin/which jq`
+[ -z $P ] && echo 'Проблема: не установлен пакет "jq".' && exit
+
+# bzip2
+P=`which bzip2`
+[ -z "$P" ] && echo 'Проблема: не определена утилита "bzip2".' && exit
+
+# nfs-common
+P=`cat $ROOT/dst.cfg.json | jq '.[] | select(.enable==true) | select(.type=="nfs")' | jq '.name' | wc -l`
+if [ $P -gt 0 ]; then
+    P=`dpkg --get-selections | grep nfs-common`
+    [ -z "$P" ] && echo 'Проблема: не установлен пакет "nfs-common".' && exit
+fi
+
+# davfs2 && curl
+P=`cat $ROOT/dst.cfg.json | jq '.[] | select(.enable==true) | select(.type=="davfs")' | jq '.name' | wc -l`
+if [ $P -gt 0 ]; then
+    P=`dpkg --get-selections | grep davfs2`
+    [ -z "$P" ] && echo 'Проблема: не установлен пакет "davfs2".' && exit
+    # P=`dpkg --get-selections | grep curl | awk '{if($1=="curl") print $1}'`
+    # [ -z "$P" ] && echo 'Проблема: не установлен пакет "curl".' && exit
+fi
+
+# pg_dump
+P=`cat $ROOT/src.cfg.json | jq '.[] | select(.enable==true) | select(.type=="pgsql") ' | jq '.name' | wc -l`
+if [ $P -gt 0 ]; then
+    P=`which pg_dump`
+    [ -z "$P" ] && echo 'Проблема: не определена утилита "pg_dump".' && exit
+fi
+
+# mysqldump
+P=`cat $ROOT/src.cfg.json | jq '.[] | select(.enable==true) | select(.type=="mysql") ' | jq '.name' | wc -l`
+if [ $P -gt 0 ]; then
+    P=`which mysqldump`
+    [ -z "$P" ] && echo 'Проблема: не определена утилита "mysqldump".' && exit
+fi
+
+
+## -----------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
+ # Фуникция ts
+ # Вывести timstamp
+ #
+ # @param bool - true - заменить пробелы символом подчёркивание
+ #
+ # Применение
+ #   $(ts)
+ #   $(ts true)
+ #
+function ts(){
+    [ "$1" == 'true' ] && echo $(date +"%Y-%m-%d %H:%M:%S") | sed 's/:/-/g;s/ /_/g' || echo $(date +"%Y-%m-%d %H:%M:%S")
+}
+
+## -----------------------------------------------------------------------------
+ # Функция delimeter
+ # Вывести строкиу-разделитель
+ #
+function delimeter(){
+    [ "$1" == "" ] \
+        && echo -e `head -c 80 < /dev/zero | tr '\0' '-'` \
+        || echo -e `head -c $1 < /dev/zero | tr '\0' '-'`
+}
+
+## -----------------------------------------------------------------------------
+function remove(){
+    while read a; do
+        echo -e $(ts)'\t' Remove $a | tee -a $FLOG
+        rm -f $a
+    done
+}
+
+## -----------------------------------------------------------------------------
+function dst_folder(){
+    while read a; do
+        Name=`echo $a | jq '.name' | sed 's/\"//g'`
+        Src=`echo $a | jq '.src' | sed 's/\"//g'`
+        Purge=`echo $a | jq '.purge' | sed 's/\"//g'`
+
+        Dst=`echo $a | jq '.dst.folder' | sed 's/\"//g'`
+
+        echo -e $(ts)'\t'Move archive to destination folder::$Dst | tee -a $FLOG
+        mkdir -p $Dst/$TAG/$Name
+        mv $Src $Dst/$TAG/$Name \
+        && echo -e $(ts)'\t' Success | tee -a $FLOG \
+        || echo -e $(ts)'\t' Fail | tee -a $FLOG
+
+        echo -e $(ts)'\t'Purge archives | tee -a $FLOG
+        P=${Src/$TMP/''} # заменить $TMP на ''
+        P=${P:21} # отрезать ts
+        find $Dst/$TAG/$Name -path "*_$P" | sort -r | tail -n +$((Purge+1)) | remove
+    done
+}
+
+## -----------------------------------------------------------------------------
+function dst_nfs(){
+    while read a; do
+        Name=`echo $a | jq '.name' | sed 's/\"//g'`
+        Src=`echo $a | jq '.src' | sed 's/\"//g'`
+        #Dst=`echo $a | jq '.dst.folder' | sed 's/\"//g'`
+        Host=`echo $a | jq '.dst.host' | sed 's/\"//g'`
+        Folder=`echo $a | jq '.dst.folder' | sed 's/\"//g'`
+        Sudo=`echo $a | jq '.dst.sudo' | sed 's/\"//g'`
+        Purge=`echo $a | jq '.dst.purge' | sed 's/\"//g'`
+
+        echo -e $(ts)'\t'Mount nfs::$Host/$Folder | tee -a $FLOG
+        mkdir -p $TMP/nfs
+        [ "$Sudo" != "null" ] \
+        && echo -e $Sudo | sudo -S mount -t nfs $Host:$Folder $TMP/nfs > /dev/null 2>>$FLOG \
+        || mount -t nfs $Host:$Folder $TMP/nfs > /dev/null 2>>$FLOG
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+            continue
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+        fi
+
+        echo -e $(ts)'\t'Move archive to destination nfs::$Host$Folder | tee -a $FLOG
+        mkdir -p $TMP/nfs/$TAG
+        mv $Src $TMP/nfs/$TAG > /dev/null 2>>$FLOG
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+        fi
+
+        echo -e $(ts)'\t'Purge archives | tee -a $FLOG
+        #find $TMP/nfs/$TAG/ -mindepth 1 -maxdepth 1 | sort -r | tail -n +$((Purge+1)) | remove
+        find $TMP/nfs/$TAG -path "*_$Name*.bz2" | sort -r | tail -n +$((Purge+1)) | remove
+
+        echo -e $(ts)'\t'Umount nfs::$Host/$Folder | tee -a $FLOG
+        [ "$Sudo" != "null" ] \
+        && echo -e $Sudo | sudo -S umount $TMP/nfs > /dev/null 2>>$FLOG \
+        || umount $TMP/nfs > /dev/null 2>>$FLOG
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+            rm -d $TMP/nfs
+        fi
+    done
+}
+
+## -----------------------------------------------------------------------------
+function dst_davfs(){
+    while read a; do
+        Name=`echo $a | jq '.name' | sed 's/\"//g'`
+        Src=`echo $a | jq '.src' | sed 's/\"//g'`
+        Purge=`echo $a | jq '.purge' | sed 's/\"//g'`
+
+        Target=`echo $a | jq '.dst.target' | sed 's/\"//g'`
+        Folder=`echo $a | jq '.dst.folder' | sed 's/\"//g'`
+
+        echo -e $(ts)'\t'Mount davfs::$Target | tee -a $FLOG
+        mount $Target > /dev/null 2>>$FLOG
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+            continue
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+        fi
+
+        echo -e $(ts)'\t'Move archive to destination davfs::$Target | tee -a $FLOG
+        mkdir -p $Target/$Folder/$TAG/$Name
+        mv $Src $Target/$Folder/$TAG/$Name \
+        && echo -e $(ts)'\t' Success | tee -a $FLOG \
+        || echo -e $(ts)'\t' Fail | tee -a $FLOG
+
+        echo -e $(ts)'\t'Purge archives | tee -a $FLOG
+        P=${Src/$TMP/''} # заменить $TMP на ''
+        P=${P:21} # отрезать ts
+        find $Target/$Folder/$TAG/$Name -path "*_$P" | sort -r | tail -n +$((Purge+1)) | remove
+
+        echo -e $(ts)'\t'Umount davfs::$Target | tee -a $FLOG
+        umount $Target > /dev/null 2>>$FLOG
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+        fi
+    done
+}
+
+
+## -----------------------------------------------------------------------------
+function dst(){
+    while read a; do
+        Name=`echo $a | jq '.name' | sed 's/\"//g'`
+        File=`echo $a | jq '.file' | sed 's/\"//g'`
+        Dst=`echo $a | jq '.dst' | sed 's/\"//g'`
+        Purge=`echo $a | jq '.purge' | sed 's/\"//g'`
+
+        Dst=`cat $ROOT/dst.cfg.json | jq '.[] | select(.enable==true) | select(.name=="'"$Dst"'")'`
+        Type=`echo $Dst | jq '.type' | sed 's/\"//g'`
+        Purge2=`echo $Dst | jq '.purge' | sed 's/\"//g'`
+        [ "$Purge2" == "null" ] && Purge2=30
+
+        [ $Purge2 -lt $Purge ] && Purge=$Purge2
+
+        if [ "$Type" == "folder" ]; then
+            echo '{ "name" : "'"$Name"'", "src" : "'"$File"'", "dst" : '$Dst', "purge" : '$Purge'}' | jq '. | tostring' | sed 's/^\"//;s/\"$//' | dst_folder
+        fi
+
+        if [ "$Type" == "davfs" ]; then
+            echo '{ "name" : "'"$Name"'", "src" : "'"$File"'", "dst" : '$Dst', "purge" : '$Purge' }' | jq '. | tostring' | sed 's/^\"//;s/\"$//' | dst_davfs
+        fi
+
+        if [ "$Type" == "nfs" ]; then
+            echo '{ "name" : "'"$Name"'", "src" : "'"$File"'", "dst" : '$Dst', "purge" : '$Purge' }' | jq '. | tostring' | sed 's/^\"//;s/\"$//' | dst_nfs
+        fi
+
+        if [ "$Type" == "ftp" ]; then
+            echo '{ "name" : "'"$Name"'", "src" : "'"$File"'", "dst" : '$Dst', "purge" : '$Purge' }' | jq '. | tostring' | sed 's/^\"//;s/\"$//' | dst_ftp
+        fi
+    done
+}
+
+
+## -----------------------------------------------------------------------------
+function src_file(){
+    while read a; do
+        Name=`echo $a | jq '.name' | sed 's/\"//g'`
+        Src=`echo $a | jq '.src'| sed 's/\"//g'`
+        Dst=`echo $a | jq '.dst' | sed 's/\"//g'`
+        Purge=`echo $a | jq '.purge' | sed 's/\"//g'`
+        [ "$Purge" == "null" ] && Purge=30
+
+        # --- если нет файла, пропустить
+        if [ ! -f $Src ]; then
+            echo -e $(ts)'  Source file '\"$Src\"' not found' | tee -a $FLOG
+            continue
+        fi
+
+        # --- если файл был изменён, то обработать
+        Touch=$TOUCH/$Name.touch
+        if [ -f $Touch ]; then
+            if [ $Touch -nt $Src ]; then
+                echo -e $(ts)'\t' Changed not found | tee -a $FLOG
+                continue
+            fi
+        fi
+        touch $Touch
+
+        # --- создать архив
+        File=$TMP/$(ts true)'_'$Name.file
+        echo -e $(ts)'\t'Create archive \"$File\" | tee -a $FLOG
+
+        cp $Src $File
+        `which bzip2` -9 $File 2>&1
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+            continue
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+        fi
+
+        File=$File.bz2
+        echo '{ "name" : "'"$Name"'","dst" : "'"$Dst"'","file" : "'"$File"'","purge" : '$Purge'}' | dst
+    done
+}
+
+## -----------------------------------------------------------------------------
+function src_folder(){
+    while read a; do
+        Name=`echo $a | jq '.name' | sed 's/\"//g'`
+        Src=`echo $a | jq '.src' | sed 's/\"//g'`
+        Dst=`echo $a | jq '.dst' | sed 's/\"//g'`
+        Purge=`echo $a | jq '.purge' | sed 's/\"//g'`
+        [ "$Purge" == "null" ] && Purge=30
+
+        # --- если нет папки, пропустить
+        if [ ! -d $Src ]; then
+            echo -e $(ts)'  Source folder '\"$Src\"' not found' | tee -a $FLOG
+            continue
+        fi
+        # --- если файл был изменён, то обработать
+        Touch=$TOUCH/$Name.touch
+        if [ -f $Touch ]; then
+            # если есть touch, то проверть были ли изменения в папке
+            F=`find $Src -newer $Touch -not -path "*.backup.stop*"`
+            if [ "$F" == "" ]; then
+                echo -e $(ts)'\t' Changed files not found | tee -a $FLOG
+                continue
+            fi
+        fi
+        touch $Touch
+
+        Home=`pwd`
+        File=$TMP/$(ts true)'_'$Name.folder.tar.bz2
+        cd $Src && cd ..
+
+        echo -e $(ts)'\t'Create archive \"$File\" | tee -a $FLOG
+
+        tar --exclude-tag-all=.backup.stop -cjf $File $(basename $Src) > /dev/null 2>&1 \
+        && echo -e $(ts)'\t' Success | tee -a $FLOG \
+        || echo -e $(ts)'\t' Fail | tee -a $FLOG
+
+        cd $Home
+
+        echo '{ "name" : "'"$Name"'","dst" : "'"$Dst"'","file" : "'"$File"'","purge" : '$Purge'}' | dst
+    done
+}
+
+## -----------------------------------------------------------------------------
+function src_pgsql(){
+    while read a; do
+        Name=`echo $a | jq '.name' | sed 's/\"//g'`
+        Dst=`echo $a | jq '.dst' | sed 's/\"//g'`
+        Purge=`echo $a | jq '.purge' | sed 's/\"//g'`
+        [ "$Purge" == "null" ] && Purge=30
+
+        Host=`echo $a | jq '.src.host' | sed 's/\"//g'`
+        Port=`echo $a | jq '.src.port' | sed 's/\"//g'`
+        Dbname=`echo $a | jq '.src.dbname' | sed 's/\"//g'`
+        User=`echo $a | jq '.src.user' | sed 's/\"//g'`
+        Pass=`echo $a | jq '.src.pass' | sed 's/\"//g'`
+
+        File=$TMP/$(ts true)'_'$Name.pgsql
+
+        echo -e $(ts)'\t'Create archive \"pgslq::$Host:$Port/$Dbname\" | tee -a $FLOG
+        PGPASSWORD=$Pass `which pg_dump` -v -h $Host -p $Port -F p -U $User -w -f $File $Dbname > /dev/null 2>$TMP/$Name-pgsql.out #2>>$FLOG
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            cat $TMP/$Name-pgsql.out | tee -a $FLOG
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+            continue
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+        fi
+        rm -f $TMP/$Name-pgsql.out
+
+        echo -e $(ts)'\t'Packing archive  | tee -a $FLOG
+        `which bzip2` -9 $File
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+            continue
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+        fi
+
+        File=$File.bz2
+        echo '{ "name" : "'"$Name"'","dst" : "'"$Dst"'","file" : "'"$File"'","purge" : '$Purge'}' | dst
+    done
+}
+
+## -----------------------------------------------------------------------------
+function src_mysql(){
+        Name=`echo $a | jq '.name' | sed 's/\"//g'`
+        Dst=`echo $a | jq '.dst' | sed 's/\"//g'`
+        Purge=`echo $a | jq '.purge' | sed 's/\"//g'`
+        [ "$Purge" == "null" ] && Purge=30
+
+        Host=`echo $a | jq '.src.host' | sed 's/\"//g'`
+        Port=`echo $a | jq '.src.port' | sed 's/\"//g'`
+        Dbname=`echo $a | jq '.src.dbname' | sed 's/\"//g'`
+        User=`echo $a | jq '.src.user' | sed 's/\"//g'`
+        Pass=`echo $a | jq '.src.pass' | sed 's/\"//g'`
+
+        File=$TMP/$(ts true)'_'$Name.mysql
+
+        echo -e $(ts)'\t'Create archive \"myslq::$Host:$Port/$Dbname\" | tee -a $FLOG
+        `which mysqldump` -Q -c -e -h $Host -P $Port -u $User -p$Pass $Dbname > $File 2>>$FLOG
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+            continue
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+        fi
+
+        echo -e $(ts)'\t'Packing archive  | tee -a $FLOG
+        `which bzip2` -9 $File
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+            continue
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+        fi
+
+        File=$File.bz2
+        echo '{ "name" : "'"$Name"'","dst" : "'"$Dst"'","file" : "'"$File"'","purge" : '$Purge'}' | dst
+}
+
+## -----------------------------------------------------------------------------
+function src(){
+    while read a; do
+        # проверить enable
+        Enable=`echo $a | jq '.enable'`
+        [ $Enable == 'false' ] && continue
+
+        # вывести type и name
+        Type=`echo $a | jq '.type' | sed 's/\"//g'`
+        Name=`echo $a | jq '.name' | sed 's/\"//g'`
+        echo -e $(ts) Start processing \"$Name\" as \"$Type\" | tee -a $FLOG
+
+        # проверить dst
+        Dst=`echo $a | jq '.dst' | sed 's/\"//g'`
+        C=`cat $ROOT/dst.cfg.json | jq '.[] | select(.enable==true) | select(.name=="'"$Dst"'")' | jq '.name' | wc -l`
+        if [ $C -eq 0 ]; then
+            echo -e $(ts)"  Destination named as \"$Dst\" not found" | tee -a $FLOG
+            echo -e $(ts) . | tee -a $FLOG
+            continue
+        fi
+
+        [ "$Type" == "file" ] && echo $a | src_file;
+        [ "$Type" == "folder" ] && echo $a | src_folder;
+        [ "$Type" == "pgsql" ] && echo $a | src_pgsql;
+        [ "$Type" == "mysql" ] && echo $a | src_mysql;
+
+        echo -e $(ts) End processing \"$Name\" | tee -a $FLOG
+        echo -e $(ts) . | tee -a $FLOG
+    done
+}
