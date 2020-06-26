@@ -1,2 +1,2 @@
 # uBackup
-Backup system for lot of OS
+Backup script for lot of OS
