@@ -9,7 +9,7 @@ export TAG=DEMO-TAG
 export DESC='Demo description'
 
 # email addres и email subject
-export EMAIL='<email>'
+export EMAIL=<email>
 export SUBJ='uBackup-'$TAG'-'$(ts true)
 
 # ------------------------------------------------------------------------------

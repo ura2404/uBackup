@@ -15,13 +15,11 @@ if [ $P -gt 0 ]; then
     [ -z "$P" ] && echo 'Проблема: не установлен пакет "nfs-common".' && exit
 fi
 
-# davfs2 && curl
+# davfs2
 P=`cat $ROOT/dst.cfg.json | jq '.[] | select(.enable==true) | select(.type=="davfs")' | jq '.name' | wc -l`
 if [ $P -gt 0 ]; then
     P=`dpkg --get-selections | grep davfs2`
     [ -z "$P" ] && echo 'Проблема: не установлен пакет "davfs2".' && exit
-    # P=`dpkg --get-selections | grep curl | awk '{if($1=="curl") print $1}'`
-    # [ -z "$P" ] && echo 'Проблема: не установлен пакет "curl".' && exit
 fi
 
 # pg_dump
@@ -84,6 +82,8 @@ function dst_folder(){
 
         echo -e $(ts)'\t'Move archive to destination folder::$Dst | tee -a $FLOG
         mkdir -p $Dst/$TAG/$Name
+        touch $Dst/.backup.stop
+
         mv $Src $Dst/$TAG/$Name \
         && echo -e $(ts)'\t' Success | tee -a $FLOG \
         || echo -e $(ts)'\t' Fail | tee -a $FLOG

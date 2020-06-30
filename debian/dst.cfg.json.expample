@@ -1,36 +1,36 @@
 [
     {
-	"enable" : true | false,
-	"name" : "name of destination",
-	"type" : "folder",
-	"folder" : "<folder path>",
-	"purge" : "<copies count, not rquired>"
+        "enable" : true | false,
+        "name" : "name of destination",
+        "type" : "folder",
+        "folder" : "<folder path>",
+        "purge" : "<copies count, not rquired>"
     },
     {
-	"enable" : true | false,
-	"name" : "name of destination",
-	"type" : "nfs",
-	"host" : "<ip|name|alias of nfs serever>",
-	"folder" : "<folder path on nfs server>",
-	"sudo" " <sudo password, not rquired>
-	"purge" : "<copies count, not rquired>"
+        "enable" : true | false,
+        "name" : "name of destination",
+        "type" : "nfs",
+        "host" : "<ip|name|alias of nfs serever>",
+        "folder" : "<folder path on nfs server>",
+        "sudo" " <sudo password, not rquired>
+        "purge" : "<copies count, not rquired>"
     },
     {
-	"enable" : true | false,
-	"name" : "name of destination",
-	"type" : "davfs",
-	"target" : "<local folder path for davfs mounting>",
-	"folder" : "<remote folder path on nfs server>",
-	"purge" : "<copies count, not rquired>"
+        "enable" : true | false,
+        "name" : "name of destination",
+        "type" : "davfs",
+        "target" : "<local folder path for davfs mounting>",
+        "folder" : "<remote folder path on nfs server>",
+        "purge" : "<copies count, not rquired>"
     },
     {
-	"enable" : true | false,
-	"name" : "name of destination",
-	"type" : "ftp",
-	"host" : "<ip|name|alias of ftp serever>",
-	"folder" : "<remote folder path on ftp server>",
-	"user" : "<davfs username>",
-	"pass" : "<davfs user password>"
-	"purge" : "<copies count, not rquired>"
+        "enable" : true | false,
+        "name" : "name of destination",
+        "type" : "ftp",
+        "host" : "<ip|name|alias of ftp serever>",
+        "folder" : "<remote folder path on ftp server>",
+        "user" : "<davfs username>",
+        "pass" : "<davfs user password>"
+        "purge" : "<copies count, not rquired>"
     }
 ]

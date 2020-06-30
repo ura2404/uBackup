@@ -1,24 +1,24 @@
 [
     {
-	"enable" : true | false,
-	"name" : "<name of source>",
-	"type : file | folder,
-	"src" : "<file|folder path>",
-	"dst" : "<name of destination>",
-	"purge" : "<copies count, not required>"
+        "enable" : true | false,
+        "name" : "<name of source>",
+        "type" : "file | folder",
+        "src" : "<file|folder path>",
+        "dst" : "<name of destination>",
+        "purge" : "<copies count, not required>"
     },
     {
-	"enable" : true | false,
-	"name" : "<name of source>",
-	"type : pgsql | mysql,
-	"src" : {
-	    "host" : "<ip|name|alias of database server>",
-	    "port" : "<database port>",
-	    "dbname" : "<database name>",
-	    "user" : "<database user name>",
-	    "pass" : "<database user password>"
-	}
-	"dst" : "<name of destination>"
-	"purge" : "<copies count, not required>"
+        "enable" : true | false,
+        "name" : "<name of source>",
+        "type" : "pgsql | mysql",
+        "src" : {
+            "host" : "<ip|name|alias of database server>",
+            "port" : "<database port>",
+            "dbname" : "<database name>",
+            "user" : "<database user name>",
+            "pass" : "<database user password>"
+        }
+        "dst" : "<name of destination>"
+        "purge" : "<copies count, not required>"
     }
 ]

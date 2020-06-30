@@ -4,12 +4,19 @@
  #
  # @version 0.0.2 2019-12-24
  # @version 0.0.1 2019-01-25
- # @author ura@urx.su
+ # @author ura@itx.ru
  #
  # -----------------------------------------------------------------------------
 
+echo
+echo '------------------------------------------------'
+echo 'Backup script for lot of OS by ura@itx.ru © 2020'
+echo
+[[ ! -f backup.lib ]] || [[ ! -f backup.cfg ]] && echo "Error: configure file isn't find or invalid startup directory." && exit
+[[ ! -f dst.cfg.json ]] || [[ ! -f src.cfg.json ]] && echo "Error: invalid source or destination files." && exit
+
 # Корень
-export ROOT=~/.uBackup
+export ROOT=`pwd`
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
