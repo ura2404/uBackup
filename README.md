@@ -7,5 +7,5 @@ You need to run the script from the start script directory.
 
 For example: 
 ```
->$ pwd = `pwd`; cd / path / to / script; backup; cd $ pwd
+>$ pwd = `pwd`; cd/path/to/script; backup; cd $ pwd
 ```
