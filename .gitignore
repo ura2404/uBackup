@@ -1,6 +1,6 @@
+.log
+.touch
 backup.cfg
 src.cfg.json
 dst.cfg.json
-.log
-.touch
 demo*
