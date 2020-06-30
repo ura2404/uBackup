@@ -1,0 +1,9 @@
+[
+    {
+        "enable" : true,
+        "name" : "uBackup",
+        "type" : "folder",
+        "folder" : "demo-backup",
+        "purge" : "5"
+    }
+]
