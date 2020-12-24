@@ -9,3 +9,9 @@ For example:
 ```
 >$ pwd = `pwd`; cd/path/to/script; backup; cd $ pwd
 ```
+
+Crontab task: 
+```
+* * * * * cd/path/to/script; bash backup;
+```
+
