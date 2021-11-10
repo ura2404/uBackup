@@ -17,7 +17,7 @@
             "dbname" : "<database name>",
             "user" : "<database user name>",
             "pass" : "<database user password>"
-        }
+        },
         "dst" : "<name of destination>"
         "purge" : "<copies count, not required>"
     }
