@@ -5,6 +5,6 @@
         "type" : "folder",
         "src" : ".",
         "dst" : "demo",
-        "purge" : "5"
+        "purge" : 5
     }
 ]

@@ -4,6 +4,6 @@
         "name" : "demo",
         "type" : "folder",
         "folder" : "demo-backup",
-        "purge" : "5"
+        "purge" : 5
     }
 ]
