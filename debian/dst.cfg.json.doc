@@ -29,8 +29,8 @@
         "type" : "ftp",
         "host" : "<ip|name|alias of ftp serever>",
         "folder" : "<remote folder path on ftp server>",
-        "user" : "<davfs username>",
-        "pass" : "<davfs user password>"
+        "user" : "<ftp username>",
+        "pass" : "<ftp user password>"
         "purge" : "<copies count, not rquired>"
     }
 ]
