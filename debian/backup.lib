@@ -358,7 +358,7 @@ function src_folder(){
         Touch=$TOUCH/$Name.touch
         if [ -f $Touch ]; then
             # если есть touch, то проверть были ли изменения в папке
-            F=`find $Src -newer $Touch -type f \( -not -path  "*/.log/*" -not -path "*/.touch/*" -not -path "*/.git/*" \)`
+            F=`find $Src -newer $Touch -type f \( -not -path  "*/.log/*" -not -path "*/.touch/*" -not -path "*/.git/*"  -not -path "*/.tmp/*" \)`
             if [ "$F" == "" ]; then
                 echo -e $(ts)'\t' Changed files not found | tee -a $FLOG
                 continue
