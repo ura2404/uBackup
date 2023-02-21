@@ -421,8 +421,26 @@ function src_pgsql(){
         else
             echo -e $(ts)'\t' Success | tee -a $FLOG
         fi
-
         File=$File.bz2
+
+        # --- если файл был изменён, то обработать
+        HID1=$TMP/$Name.hid
+        HID2=$TOUCH/$Name.hid
+        if [ ! -f $HID2 ]; then
+            echo 'new file' > $HID2
+        fi
+        md5sum $File > $HID1
+
+        H1=`cat $HID1 | awk '{print $1}'`
+        H2=`cat $HID2 | awk '{print $1}'`
+
+        if [ $H1 = $H2 ]; then
+            echo -e $(ts)'\t' Changed files not found | tee -a $FLOG
+            continue
+        fi
+        mv $HID1 $HID2
+
+        # --- отправить ---
         echo '{ "name" : "'"$Name"'","dst" : "'"$Dst"'","file" : "'"$File"'","purge" : '$Purge'}' | dst
     done
 }
@@ -462,6 +480,24 @@ function src_mysql(){
             echo -e $(ts)'\t' Success | tee -a $FLOG
         fi
 
+        # --- если файл был изменён, то обработать
+        HID1=$TMP/$Name.hid
+        HID2=$TOUCH/$Name.hid
+        if [ ! -f $HID2 ]; then
+            echo 'new file' > $HID2
+        fi
+        md5sum $File > $HID1
+
+        H1=`cat $HID1 | awk '{print $1}'`
+        H2=`cat $HID2 | awk '{print $1}'`
+
+        if [ $H1 = $H2 ]; then
+            echo -e $(ts)'\t' Changed files not found | tee -a $FLOG
+            continue
+        fi
+        mv $HID1 $HID2
+
+        # --- отправить ---
         File=$File.bz2
         echo '{ "name" : "'"$Name"'","dst" : "'"$Dst"'","file" : "'"$File"'","purge" : '$Purge'}' | dst
 }
