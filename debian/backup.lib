@@ -464,6 +464,30 @@ function src_mysql(){
 }
 
 ## -----------------------------------------------------------------------------
+function src_shell(){
+        Name=`echo $a | jq '.name' | sed 's/\"//g'`
+        Dst=`echo $a | jq '.dst' | sed 's/\"//g'`
+        Purge=`echo $a | jq '.purge' | sed 's/\"//g'`
+        [ "$Purge" == "null" ] && Purge=30
+
+        Command=`echo $a | jq '.command' | sed 's/\"//g'`
+
+        File=$TMP/$(ts true)'_'$Name
+        $Command > $File
+        `which bzip2` -9 $File
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+            return
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+        fi
+
+        File=$File.bz2
+        echo '{ "name" : "'"$Name"'","dst" : "'"$Dst"'","file" : "'"$File"'","purge" : '$Purge'}' | dst
+}
+
+## -----------------------------------------------------------------------------
 function src(){
     while read a; do
         # проверить enable
@@ -484,10 +508,11 @@ function src(){
             continue
         fi
 
-        [ "$Type" == "file" ] && echo $a | src_file;
+        [ "$Type" == "file" ]   && echo $a | src_file;
         [ "$Type" == "folder" ] && echo $a | src_folder;
-        [ "$Type" == "pgsql" ] && echo $a | src_pgsql;
-        [ "$Type" == "mysql" ] && echo $a | src_mysql;
+        [ "$Type" == "pgsql" ]  && echo $a | src_pgsql;
+        [ "$Type" == "mysql" ]  && echo $a | src_mysql;
+        [ "$Type" == "shell" ]  && echo $a | src_shell;
 
         echo -e $(ts) End processing \"$Name\" | tee -a $FLOG
         echo -e $(ts) . | tee -a $FLOG
