@@ -353,11 +353,12 @@ function src_folder(){
             echo -e $(ts)'  Source folder '\"$Src\"' not found' | tee -a $FLOG
             continue
         fi
+
         # --- если файл был изменён, то обработать
         Touch=$TOUCH/$Name.touch
         if [ -f $Touch ]; then
             # если есть touch, то проверть были ли изменения в папке
-            F=`find $Src -newer $Touch -not -path "*.backup.stop*"`
+            F=`find $Src -newer $Touch -type f \( -not -path  "*/.log/*" -not -path "*/.touch/*" -not -path "*/.git/*" \)`
             if [ "$F" == "" ]; then
                 echo -e $(ts)'\t' Changed files not found | tee -a $FLOG
                 continue
@@ -365,18 +366,20 @@ function src_folder(){
         fi
         touch $Touch
 
+        # --- создать ---
         Home=`pwd`
         File=$TMP/$(ts true)'_'$Name.folder.tar.bz2
         cd $Src && cd ..
 
         echo -e $(ts)'\t'Create archive \"$File\" | tee -a $FLOG
 
-        tar --exclude-tag-all=.backup.stop -cjf $File $(basename $Src) > /dev/null 2>&1 \
+        tar --exclude .git --exclude-tag-all=.backup.stop -cjf $File $(basename $Src) > /dev/null 2>&1 \
         && echo -e $(ts)'\t' Success | tee -a $FLOG \
         || echo -e $(ts)'\t' Fail | tee -a $FLOG
 
         cd $Home
 
+        # --- отправить ---
         echo '{ "name" : "'"$Name"'","dst" : "'"$Dst"'","file" : "'"$File"'","purge" : '$Purge'}' | dst
     done
 }
@@ -465,26 +468,48 @@ function src_mysql(){
 
 ## -----------------------------------------------------------------------------
 function src_shell(){
+    while read a; do
         Name=`echo $a | jq '.name' | sed 's/\"//g'`
         Dst=`echo $a | jq '.dst' | sed 's/\"//g'`
         Purge=`echo $a | jq '.purge' | sed 's/\"//g'`
         [ "$Purge" == "null" ] && Purge=30
 
-        Command=`echo $a | jq '.command' | sed 's/\"//g'`
-
+        # --- ---
         File=$TMP/$(ts true)'_'$Name
+        Command=`echo $a | jq '.command' | sed 's/\"//g'`
         $Command > $File
+
+        # --- сжать ---
         `which bzip2` -9 $File
         RET=$?
         if [ "$RET" != "0" ]; then
             echo -e $(ts)'\t' Fail | tee -a $FLOG
-            return
+            continue
         else
             echo -e $(ts)'\t' Success | tee -a $FLOG
         fi
-
         File=$File.bz2
+
+        # --- если файл был изменён, то обработать
+        HID1=$TMP/$Name.hid
+        HID2=$TOUCH/$Name.hid
+        if [ ! -f $HID2 ]; then
+            echo 'new file' > $HID2
+        fi
+        md5sum $File > $HID1
+
+        H1=`cat $HID1 | awk '{print $1}'`
+        H2=`cat $HID2 | awk '{print $1}'`
+
+        if [ $H1 = $H2 ]; then
+            echo -e $(ts)'\t' Changed files not found | tee -a $FLOG
+            continue
+        fi
+        mv $HID1 $HID2
+
+        # --- отправить ---
         echo '{ "name" : "'"$Name"'","dst" : "'"$Dst"'","file" : "'"$File"'","purge" : '$Purge'}' | dst
+    done
 }
 
 ## -----------------------------------------------------------------------------
