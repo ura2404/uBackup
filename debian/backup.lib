@@ -494,7 +494,7 @@ function src_mysql(){
         H1=`cat $HID1 | awk '{print $1}'`
         H2=`cat $HID2 | awk '{print $1}'`
 
-        if [ $H1 = $H2 ]; then
+        if [ "$H1" = "$H2" ]; then
             echo -e $(ts)'\t' Changed files not found | tee -a $FLOG
             continue
         fi
