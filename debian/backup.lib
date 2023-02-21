@@ -447,6 +447,7 @@ function src_pgsql(){
 
 ## -----------------------------------------------------------------------------
 function src_mysql(){
+    while read a; do
         Name=`echo $a | jq '.name' | sed 's/\"//g'`
         Dst=`echo $a | jq '.dst' | sed 's/\"//g'`
         Purge=`echo $a | jq '.purge' | sed 's/\"//g'`
@@ -500,6 +501,7 @@ function src_mysql(){
         # --- отправить ---
         File=$File.bz2
         echo '{ "name" : "'"$Name"'","dst" : "'"$Dst"'","file" : "'"$File"'","purge" : '$Purge'}' | dst
+    done
 }
 
 ## -----------------------------------------------------------------------------
