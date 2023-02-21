@@ -479,7 +479,7 @@ function src_mysql(){
         if [ ! -f $HID2 ]; then
             echo 'new file' > $HID2
         fi
-        cat $File | grep -v 'dump completed' | md5sum > $HID1
+        cat $File | grep -v 'Dump completed' | md5sum > $HID1
 
         H1=`cat $HID1 | awk '{print $1}'`
         H2=`cat $HID2 | awk '{print $1}'`
