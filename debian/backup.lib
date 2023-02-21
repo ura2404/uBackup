@@ -455,6 +455,7 @@ function src_mysql(){
 
         Host=`echo $a | jq '.src.host' | sed 's/\"//g'`
         Port=`echo $a | jq '.src.port' | sed 's/\"//g'`
+        [ "$Port" == "null" ] && Purge=3389
         Dbname=`echo $a | jq '.src.dbname' | sed 's/\"//g'`
         User=`echo $a | jq '.src.user' | sed 's/\"//g'`
         Pass=`echo $a | jq '.src.pass' | sed 's/\"//g'`
@@ -480,6 +481,7 @@ function src_mysql(){
         else
             echo -e $(ts)'\t' Success | tee -a $FLOG
         fi
+        File=$File.bz2
 
         # --- если файл был изменён, то обработать
         HID1=$TMP/$Name.hid
@@ -499,7 +501,6 @@ function src_mysql(){
         mv $HID1 $HID2
 
         # --- отправить ---
-        File=$File.bz2
         echo '{ "name" : "'"$Name"'","dst" : "'"$Dst"'","file" : "'"$File"'","purge" : '$Purge'}' | dst
     done
 }
