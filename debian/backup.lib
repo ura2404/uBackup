@@ -412,17 +412,6 @@ function src_pgsql(){
         fi
         rm -f $TMP/$Name-pgsql.out
 
-        echo -e $(ts)'\t'Packing archive  | tee -a $FLOG
-        `which bzip2` -9 $File
-        RET=$?
-        if [ "$RET" != "0" ]; then
-            echo -e $(ts)'\t' Fail | tee -a $FLOG
-            continue
-        else
-            echo -e $(ts)'\t' Success | tee -a $FLOG
-        fi
-        File=$File.bz2
-
         # --- если файл был изменён, то обработать
         HID1=$TMP/$Name.hid
         HID2=$TOUCH/$Name.hid
@@ -439,6 +428,18 @@ function src_pgsql(){
             continue
         fi
         mv $HID1 $HID2
+
+        # --- упаковать ---
+        echo -e $(ts)'\t'Packing archive  | tee -a $FLOG
+        `which bzip2` -9 $File
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+            continue
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+        fi
+        File=$File.bz2
 
         # --- отправить ---
         echo '{ "name" : "'"$Name"'","dst" : "'"$Dst"'","file" : "'"$File"'","purge" : '$Purge'}' | dst
@@ -472,17 +473,6 @@ function src_mysql(){
             echo -e $(ts)'\t' Success | tee -a $FLOG
         fi
 
-        echo -e $(ts)'\t'Packing archive  | tee -a $FLOG
-        `which bzip2` -9 $File
-        RET=$?
-        if [ "$RET" != "0" ]; then
-            echo -e $(ts)'\t' Fail | tee -a $FLOG
-            continue
-        else
-            echo -e $(ts)'\t' Success | tee -a $FLOG
-        fi
-        File=$File.bz2
-
         # --- если файл был изменён, то обработать
         HID1=$TMP/$Name.hid
         HID2=$TOUCH/$Name.hid
@@ -499,6 +489,18 @@ function src_mysql(){
             continue
         fi
         mv $HID1 $HID2
+
+        # --- упаковать ---
+        echo -e $(ts)'\t'Packing archive  | tee -a $FLOG
+        `which bzip2` -9 $File
+        RET=$?
+        if [ "$RET" != "0" ]; then
+            echo -e $(ts)'\t' Fail | tee -a $FLOG
+            continue
+        else
+            echo -e $(ts)'\t' Success | tee -a $FLOG
+        fi
+        File=$File.bz2
 
         # --- отправить ---
         echo '{ "name" : "'"$Name"'","dst" : "'"$Dst"'","file" : "'"$File"'","purge" : '$Purge'}' | dst
