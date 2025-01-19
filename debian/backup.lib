@@ -373,7 +373,7 @@ function src_folder(){
 
         echo -e $(ts)'\t'Create archive \"$File\" | tee -a $FLOG
 
-        tar --exclude .git --exclude-tag-all=.backup.stop -cjf $File $(basename $Src) > /dev/null 2>&1 \
+        tar --exclude .git --exclude-tag-all=.backup.stop -hcjf $File $(basename $Src) > /dev/null 2>&1 \
         && echo -e $(ts)'\t' Success | tee -a $FLOG \
         || echo -e $(ts)'\t' Fail | tee -a $FLOG
 
