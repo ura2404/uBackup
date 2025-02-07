@@ -89,7 +89,7 @@ function dst_folder(){
 
         echo -e $(ts)'\t'Move archive to destination folder::$Dst | tee -a $FLOG
         mkdir -p $Dst/$TAG/$Name
-        touch $Dst/.backup.stop
+        # touch $Dst/.backup.stop
 
         mv $Src $Dst/$TAG/$Name \
         && echo -e $(ts)'\t' Success | tee -a $FLOG \

@@ -52,10 +52,10 @@ echo -e $(ts) Start \"$TAG\" | tee -a $FLOG
 # 2. проверка PID
 echo -e $(ts) Check pid | tee -a $FLOG
 
-#    если pid старше 30 минут, то удалить его
-find $PID -type f -cmin +30 -exec rm '{}' \; 2>/dev/null
+# если pid старше 60 минут, то удалить его
+# find $PID -type f -cmin +60 -exec rm '{}' \; 2>/dev/null
 
-#    если есть pid, то выход, иначе создать pid и продолжить
+# если есть pid, то выход, иначе создать pid и продолжить
 if [ -f $PID ]; then
     echo -e $(ts)'  Pid is exists, process is stoped' | tee -a $FLOG
     bzip2 -9 $FLOG
@@ -67,7 +67,7 @@ fi
 
 # ------------------
 # 3. Удалить логи старше 2-х дней
-find $LOG -type f -ctime +2 -path '*.log.bz2' -exec rm '{}' \; 2>/dev/null
+find $LOG -type f -ctime +1 \( -name '*.log' -or -name '*.log.bz2' \) -exec rm '{}' \; 2>/dev/null
 
 # ------------------
 # 4. перебор src
