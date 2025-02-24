@@ -12,6 +12,6 @@ For example:
 
 Crontab task: 
 ```
-* * * * * cd/path/to/script; bash backup;
+0 6-20/6 * * 1-5 cd/path/to/script; bash backup;
 ```
 
