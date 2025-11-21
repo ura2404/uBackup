@@ -13,5 +13,8 @@ For example:
 Crontab task: 
 ```
 0 6-20/6 * * 1-5 cd/path/to/script; bash backup;
+
+# реальный приме
+15 */3 * * * cd ~/uBackup/debian; bash backup;
 ```
 
