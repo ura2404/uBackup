@@ -91,9 +91,9 @@ function dst_folder(){
         mkdir -p $Dst/$TAG/$Name
         # touch $Dst/.backup.stop
 
-        mv $Src $Dst/$TAG/$Name \
-        && echo -e $(ts)'\t' Success | tee -a $FLOG \
-        || echo -e $(ts)'\t' Fail | tee -a $FLOG
+        mv $Src $Dst/$TAG/$Name                         \
+            && echo -e $(ts)'\t' Success | tee -a $FLOG \
+            || echo -e $(ts)'\t' Fail | tee -a $FLOG
 
         echo -e $(ts)'\t'Purge archives | tee -a $FLOG
         P=${Src/$TMP/''} # заменить $TMP на ''
@@ -242,9 +242,9 @@ function dst_davfs(){
 
         echo -e $(ts)'\t'Move archive to destination davfs::$Target | tee -a $FLOG
         mkdir -p $Target/$Folder/$TAG/$Name
-        mv $Src $Target/$Folder/$TAG/$Name \
-        && echo -e $(ts)'\t' Success | tee -a $FLOG \
-        || echo -e $(ts)'\t' Fail | tee -a $FLOG
+        mv $Src $Target/$Folder/$TAG/$Name              \
+            && echo -e $(ts)'\t' Success | tee -a $FLOG \
+            || echo -e $(ts)'\t' Fail | tee -a $FLOG
 
         echo -e $(ts)'\t'Purge archives | tee -a $FLOG
         P=${Src/$TMP/''} # заменить $TMP на ''
@@ -402,7 +402,21 @@ function src_pgsql(){
         Pass=`echo $a | jq '.src.pass' | sed 's/\"//g'`
 
         File=$TMP/$(ts true)'_'$Name.pgsql
+        HID1=$TMP/$Name.hid
+        HID2=$TOUCH/$Name.hid
 
+        # ----------------------------------------------------------------------
+        if [ -f $HID2 ]; then
+            time=$(stat -c %Y "$HID2")
+            now=$(date +%s)
+            diff=$(( (now - file) / 60 ))
+            if (( diff > 3600 )); then
+                echo -e $(ts)'\t' it\'s still early | tee -a $FLOG
+                continue
+            fi
+        fi
+
+        # ----------------------------------------------------------------------
         echo -e $(ts)'\t'Create archive \"pgslq::$Host:$Port/$Dbname\" | tee -a $FLOG
         PGPASSWORD=$Pass `which pg_dump` -v -h $Host -p $Port -F p -U $User -w -f $File $Dbname > /dev/null 2>$TMP/$Name-pgsql.out #2>>$FLOG
         RET=$?
@@ -415,14 +429,26 @@ function src_pgsql(){
         fi
         rm -f $TMP/$Name-pgsql.out
 
+        # ----------------------------------------------------------------------
         # --- если файл был изменён, то обработать
-        HID1=$TMP/$Name.hid
-        HID2=$TOUCH/$Name.hid
         if [ ! -f $HID2 ]; then
-            echo 'new file' > $HID2
+            echo 'new file' > $HID2 
+            md5sum $File > $HID1
         fi
-        md5sum $File > $HID1
 
+        # ----------------------------------------------------------------------
+        # Получаем время доступа в секундах
+        t1=$(stat -c %X "$HID1")
+        t2=$(stat -c %X "$HID2")
+        # Разница во времени
+        diff=$(( t1 > t2 ? t1 - t2 : t2 - t1 ))
+        # Если разница больше 3600 секунд (1 час)
+        if (( diff < 3600 )); then
+            echo -e $(ts)'\t' it\'s still early | tee -a $FLOG
+            continue
+        fi
+
+        # ----------------------------------------------------------------------
         H1=`cat $HID1 | awk '{print $1}'`
         H2=`cat $HID2 | awk '{print $1}'`
 
@@ -465,9 +491,23 @@ function src_mysql(){
         Pass=`echo $a | jq '.src.pass' | sed 's/\"//g'`
 
         File=$TMP/$(ts true)'_'$Name.mysql
+        HID1=$TMP/$Name.hid
+        HID2=$TOUCH/$Name.hid
 
+        # ----------------------------------------------------------------------
+        if [ -f $HID2 ]; then
+            time=$(stat -c %Y "$HID2")
+            now=$(date +%s)
+            diff=$(( (now - file) / 60 ))
+            if (( diff > 3600 )); then
+                echo -e $(ts)'\t' it\'s still early | tee -a $FLOG
+                continue
+            fi
+        fi
+
+        # ----------------------------------------------------------------------
         echo -e $(ts)'\t'Create archive \"myslq::$Host:$Port/$Dbname\" | tee -a $FLOG
-        `which mysqldump` -Q -c -e -h $Host -P $Port -u $User -p$Pass $Dbname > $File 2>>$FLOG
+        `which mysqldump` -Q -c -e -h $Host -P $Port -u $User -p$Pass $Dbname > $File #2>>$FLOG
         RET=$?
         if [ "$RET" != "0" ]; then
             echo -e $(ts)'\t' Fail | tee -a $FLOG
@@ -476,14 +516,14 @@ function src_mysql(){
             echo -e $(ts)'\t' Success | tee -a $FLOG
         fi
 
+        # ----------------------------------------------------------------------
         # --- если файл был изменён, то обработать
-        HID1=$TMP/$Name.hid
-        HID2=$TOUCH/$Name.hid
         if [ ! -f $HID2 ]; then
             echo 'new file' > $HID2
         fi
         cat $File | grep -v 'Dump completed' | md5sum > $HID1
 
+        # ----------------------------------------------------------------------
         H1=`cat $HID1 | awk '{print $1}'`
         H2=`cat $HID2 | awk '{print $1}'`
 
