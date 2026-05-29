@@ -409,8 +409,8 @@ function src_pgsql(){
         if [ -f $HID2 ]; then
             time=$(stat -c %Y "$HID2")
             now=$(date +%s)
-            diff=$(( (now - file) / 60 ))
-            if (( diff > 3600 )); then
+            diff=$(( (now - time) / 60 ))
+            if (( diff < 3600 )); then
                 echo -e $(ts)'\t' it\'s still early | tee -a $FLOG
                 continue
             fi
