@@ -454,6 +454,7 @@ function src_pgsql(){
 
         if [ $H1 = $H2 ]; then
             echo -e $(ts)'\t' Changed files not found | tee -a $FLOG
+            mv $HID1 $HID2
             continue
         fi
         mv $HID1 $HID2
@@ -529,6 +530,7 @@ function src_mysql(){
 
         if [ "$H1" = "$H2" ]; then
             echo -e $(ts)'\t' Changed files not found | tee -a $FLOG
+            mv $HID1 $HID2
             continue
         fi
         mv $HID1 $HID2
